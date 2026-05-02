@@ -1,0 +1,34 @@
+{
+  "name": "xmlui-dnd-list",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Drag-and-drop sortable list for XMLUI (and standalone React). Drop-in replacement for <Items> with onReorder.",
+  "type": "module",
+  "main": "./dist/xmlui-dnd-list.js",
+  "module": "./dist/xmlui-dnd-list.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/xmlui-dnd-list.mjs",
+      "require": "./dist/xmlui-dnd-list.js"
+    }
+  },
+  "scripts": {
+    "build:extension": "xmlui build-lib",
+    "help": "xmlui --help"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.1.0",
+    "@dnd-kit/sortable": "^8.0.0",
+    "@dnd-kit/utilities": "^3.2.2"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "devDependencies": {
+    "xmlui": "^0.12.25",
+    "typescript": "^5.4.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0"
+  }
+}
