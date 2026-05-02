@@ -1,15 +1,15 @@
 // XMLUI adapter for DndListNative.
 //
-// Uses createComponentRenderer (the documented extension path), not the
-// wrapComponent customRender pattern that core components like Items use
-// internally. Functionally similar — we extract props from `node.props`
-// and pass `renderItem` that wraps each emitted child in MemoizedItem so
-// the itemTemplate receives contextVars ($item, $itemIndex, $isFirst, $isLast).
+// Mirrors xmlui/src/components/Items/Items.tsx — wrapComponent + customRender
+// is the modern primitive for components that drive their own iteration.
+// customRender's context exposes the same node/renderChild/extractValue/
+// layoutContext/lookupEventHandler helpers, plus everything wrapComponent
+// adds (auto prop forwarding, automatic event registration, future hooks).
 //
 // xmlui externalizes 'xmlui' at build time, so these imports resolve to the
 // host app's standalone runtime when the extension UMD is loaded.
 import {
-  createComponentRenderer,
+  wrapComponent,
   createMetadata,
   MemoizedItem,
   d,
@@ -55,21 +55,19 @@ const DndItemsMd = createMetadata({
   opaque: true,
 });
 
-export const dndItemsComponentRenderer = createComponentRenderer(
-  COMP,
-  DndItemsMd,
-  ({ node, renderChild, extractValue, layoutContext, lookupEventHandler }: any) => {
-    const onReorder = lookupEventHandler("reorder");
+export const dndItemsComponentRenderer = wrapComponent(COMP, DndListNative, DndItemsMd, {
+  customRender: (_props, context) => {
+    const { node, renderChild, extractValue, layoutContext, lookupEventHandler } = context;
     return (
       <DndListNative
-        items={extractValue(node.props?.items) || extractValue(node.props?.data)}
-        reverse={extractValue(node.props?.reverse)}
-        onReorder={(newItems: any[]) => onReorder?.(newItems)}
-        renderItem={(contextVars: any, key: number) => (
+        items={extractValue(node.props.items) || extractValue(node.props.data)}
+        reverse={extractValue(node.props.reverse)}
+        onReorder={lookupEventHandler("reorder")}
+        renderItem={(contextVars, key) => (
           <MemoizedItem
             key={key}
             contextVars={contextVars}
-            node={node.props?.itemTemplate}
+            node={node.props.itemTemplate}
             renderChild={renderChild}
             layoutContext={layoutContext}
           />
@@ -77,4 +75,4 @@ export const dndItemsComponentRenderer = createComponentRenderer(
       />
     );
   },
-);
+});
