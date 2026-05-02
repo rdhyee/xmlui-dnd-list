@@ -42,13 +42,39 @@ export type ContextVars = {
   $isLast: boolean;
 };
 
+export type ReorderInfo = {
+  /** The item that was dragged. */
+  item: any;
+  /** 0-based index in the canonical (un-reversed) array, before the move. */
+  fromIndex: number;
+  /** 0-based index in the canonical (un-reversed) array, after the move. */
+  toIndex: number;
+  /** Human-readable summary, e.g. "Toronto moved from position 1 to position 3".
+   *  Best-effort: derived from item.name/label/title/id or the item itself
+   *  when stringifiable. Trace consumers (Inspector, xs-trace tooling) can
+   *  surface this directly. */
+  description: string;
+};
+
 export type DndListNativeProps = {
   items: any[];
   renderItem: (contextVars: ContextVars, key: number) => ReactNode;
-  onReorder?: (newItems: any[]) => void;
+  onReorder?: (newItems: any[], info: ReorderInfo) => void;
   getItemId?: (item: any, index: number) => string | number;
   reverse?: boolean;
 };
+
+function defaultItemLabel(item: any): string {
+  if (item == null) return "(empty)";
+  if (typeof item === "string" || typeof item === "number") return String(item);
+  if (typeof item === "object") {
+    if (item.name !== undefined) return String(item.name);
+    if (item.label !== undefined) return String(item.label);
+    if (item.title !== undefined) return String(item.title);
+    if (item.id !== undefined) return `#${String(item.id)}`;
+  }
+  return String(item);
+}
 
 const defaultGetItemId = (item: any, index: number): string | number => {
   if (item == null) return index;
@@ -98,13 +124,24 @@ export function DndListNative({
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      const oldIndex = idForIndex.indexOf(String(active.id));
-      const newIndex = idForIndex.indexOf(String(over.id));
-      if (oldIndex < 0 || newIndex < 0) return;
-      const newOrder = arrayMove(normalized, oldIndex, newIndex);
-      // If we were rendering reversed, un-reverse before reporting back to the
-      // caller so the array they see matches the source-of-truth order.
-      onReorder?.(reverse ? [...newOrder].reverse() : newOrder);
+      const oldLocal = idForIndex.indexOf(String(active.id));
+      const newLocal = idForIndex.indexOf(String(over.id));
+      if (oldLocal < 0 || newLocal < 0) return;
+      const newLocalOrder = arrayMove(normalized, oldLocal, newLocal);
+      // If we rendered reversed, un-reverse the reported array so the caller
+      // sees the canonical source-of-truth order.
+      const newOrder = reverse ? [...newLocalOrder].reverse() : newLocalOrder;
+
+      // Build the structured info payload. Map local indices into the canonical
+      // array space so `fromIndex`/`toIndex` describe the move in terms of the
+      // array the caller stores, not the rendered order.
+      const last = normalized.length - 1;
+      const fromIndex = reverse ? last - oldLocal : oldLocal;
+      const toIndex = reverse ? last - newLocal : newLocal;
+      const item = normalized[oldLocal];
+      const description = `${defaultItemLabel(item)} moved from position ${fromIndex + 1} to position ${toIndex + 1}`;
+
+      onReorder?.(newOrder, { item, fromIndex, toIndex, description });
     },
     [idForIndex, normalized, onReorder, reverse],
   );
