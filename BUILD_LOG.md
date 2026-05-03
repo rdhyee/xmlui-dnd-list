@@ -175,3 +175,51 @@ xmlui-dnd-list/
 ## Total time
 
 ~2 hours from empty directory to working drag-and-drop in an XMLUI app. Toolchain friction was real but bounded — most of it lived in the three numbered "Problems" above, each one read-the-source-code-and-keep-going.
+
+## Coda: how this all landed (2026-05-02 evening)
+
+I sent Jon Udell the email above as a build-experience report. ~3 hours later he came back with **five upstream PRs and a PR on this repo**. All of the issues flagged in "Things to file / fix / revisit" were actioned:
+
+- [`xmlui-org/xmlui#3424`](https://github.com/xmlui-org/xmlui/pull/3424) — extension-packaging guide now explains what `xmlui build-lib` does and links to its source. Resolves issue #1 in the list above.
+- [`xmlui-org/xmlui#3425`](https://github.com/xmlui-org/xmlui/pull/3425) — removes the stale `build-hello-world-component` tutorial.
+- [`xmlui-org/xmlui#3426`](https://github.com/xmlui-org/xmlui/pull/3426) — fixes the `react/jsx-runtime` globals typo. Resolves Problem D from §4. Once a release ships this, the inline JSX-runtime shim in `examples/xmlui-app/index.html` becomes unnecessary.
+- [`xmlui-org/xmlui#3427`](https://github.com/xmlui-org/xmlui/pull/3427) — removes the stale `build-editor-component` tutorial and retargets the introducing-xmlui blog link.
+- [`xmlui-org/trace-tools#13`](https://github.com/xmlui-org/trace-tools/pull/13) — Inspector now reads an optional `description` field from any `handler:start` `eventArg` and appends it to the trace title. Convention-only; no schema changes.
+
+Plus the PR on this repo, [#1](https://github.com/rdhyee/xmlui-dnd-list/pull/1), with two commits by Jon (each co-authored with Claude):
+
+1. **Switch from `createComponentRenderer` to `wrapComponent` + `customRender`** — exactly the pattern I tried first and reverted from when I misdiagnosed the `Unknown component` namespace error as an API choice issue. The original instinct was right; the doc gap was the misdirect. Diff was ~10 lines, all signature.
+2. **Pass `{ item, fromIndex, toIndex, description }` as the second arg to `onReorder`** — backward compatible (unary handlers ignore the extra arg). The `description` field is what `trace-tools#13` reads to enrich Inspector titles, e.g. `"XMLUIDndList.DndItems reorder — Albany, CA moved from position 1 to position 2"`.
+
+I added one small commit on top documenting the new payload in `README.md` (the public-API contract changed), then merged.
+
+### Pre-merge review
+
+Before merging, I ran the PR through Codex (gpt-5.4) for a second-pair-of-eyes pass. Codex walked the index arithmetic for `reverse=true` and signed off, but flagged one merge-blocker: removing the unary adapter means XMLUI's `lookupEventHandler` now sees a 2-arg call directly, and we hadn't actually verified that an XMLUI handler written as `(newOrder, info) => {...}` receives `info` at arg 2. Jon's PR description noted that `eventArgs[1]` was captured in the trace stream, which is necessary but not sufficient — the trace system might serialize args independently of how user handlers receive them.
+
+So I temporarily modified the weather app's `onReorder` to a 2-arg handler stashing `info` on `window.__lastReorderInfo`, dragged Albany down two slots, and confirmed XMLUI's binding correctly forwards both args:
+
+```json
+{ "item": "Albany, CA", "fromIndex": 0, "toIndex": 2,
+  "description": "Albany, CA moved from position 1 to position 3" }
+```
+
+Codex's blocker cleared. Two non-blocking concerns it flagged:
+
+- Optional chaining was removed (`node.props?.foo` → `node.props.foo`) — less defensive but matches `Items.tsx` exactly. Accepted.
+- `defaultItemLabel`'s fallback chain has minor edge cases (`id: null` → `"#null"`, plain objects → `"[object Object]"`). Real but doesn't bite the weather app's string items. Filing as a follow-up issue.
+
+### Why the "Problems" section above is now (mostly) historical
+
+After the upstream PRs ship in a release:
+
+- **Problem A** (import path `xmlui/components-core/wrapComponent` 404s): still real. xmlui's package.json still only exports `.`. Future authors find this by reading the d.ts file. Worth its own followup (re-exporting subpaths or documenting "import from `xmlui` only").
+- **Problem B** (`createComponentRenderer` vs `wrapComponent` confusion): #3424's docs rewrite pre-empts it.
+- **Problem C** (namespace + bare-reference inconsistency): #3425 removes the misleading hello-world tutorial; future authors see only the corrected packaging guide.
+- **Problem D** (`react/jsx-runtime` globals typo): #3426 fixes it at the source. The shim in `examples/xmlui-app/index.html` stays for now (until a release with #3426 ships) but is documented as removable.
+
+I'm leaving this BUILD_LOG.md as-written (with the original Problems intact) because the *narrative* is now part of the artifact's value: it shows what a first-time author actually hit and how the framework responded. The fixes happened *because* the friction was documented narratively. If we'd just opened five terse issues, none of this would have moved this fast.
+
+### Next: xmlui-org
+
+Jon wants `xmlui-dnd-list` to be the first community-contributed extension under the `xmlui-org` umbrella, with the contribution coming from me (Raymond). Awaiting his guidance on the exact path — likely some combination of repo transfer, packages/ tree inclusion, or registry entry.
