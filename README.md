@@ -6,7 +6,7 @@ Drag-and-drop sortable list for [XMLUI](https://xmlui.org/) — a drop-in replac
 
 ## What you get
 
-- **`<DndItems>`** — XMLUI component. Same `data` / `reverse` / `itemTemplate` / `$item` / `$itemIndex` / `$isFirst` / `$isLast` semantics as `<Items>`. One added event: `onReorder(newOrder)`.
+- **`<DndItems>`** — XMLUI component. Same `data` / `reverse` / `itemTemplate` / `$item` / `$itemIndex` / `$isFirst` / `$isLast` semantics as `<Items>`. One added event: `onReorder(newOrder, info)`.
 - **`DndListNative`** — the underlying React component. Zero XMLUI imports. Portable to any React app.
 
 Built on [`@dnd-kit/sortable`](https://docs.dndkit.com/) — accessibility-first, keyboard sensors built in, ~10KB. UMD output: 48KB minified, 16KB gzipped (dnd-kit bundled, React + XMLUI runtime externalized).
@@ -40,7 +40,7 @@ Built on [`@dnd-kit/sortable`](https://docs.dndkit.com/) — accessibility-first
   var.cities="{['Berkeley', 'Albany', 'Tokyo']}">
   <Dnd:DndItems
     data="{cities}"
-    onReorder="(newOrder) => { cities = newOrder; }">
+    onReorder="(newOrder, info) => { cities = newOrder; }">
     <HStack>
       <Text>{$item}</Text>
       <Text when="{$isFirst}">first</Text>
@@ -49,6 +49,18 @@ Built on [`@dnd-kit/sortable`](https://docs.dndkit.com/) — accessibility-first
 </App>
 ```
 
+### The `onReorder` payload
+
+`onReorder` fires after a drag completes with two arguments:
+
+1. **`newOrder`** — the items in their new order. Assign this back to your source array.
+2. **`info`** — `{ item, fromIndex, toIndex, description }` describing the move:
+   - `item` — the item that was dragged
+   - `fromIndex` / `toIndex` — 0-based indices in the canonical (un-reversed) array
+   - `description` — human-readable summary, e.g. `"Toronto moved from position 1 to position 3"`. Surfaced by the XMLUI Inspector trace title (see [`xmlui-org/trace-tools`](https://github.com/xmlui-org/trace-tools)) when present.
+
+The second argument is optional — handlers written as `(newOrder) => { ... }` keep working unchanged.
+
 ## Use in a plain React app
 
 ```tsx
@@ -56,7 +68,10 @@ import { DndListNative } from "xmlui-dnd-list/native";
 
 <DndListNative
   items={cities}
-  onReorder={(next) => setCities(next)}
+  onReorder={(next, info) => {
+    setCities(next);
+    console.log(info.description);  // "Albany moved from position 1 to position 3"
+  }}
   renderItem={(ctx) => <Row city={ctx.$item} first={ctx.$isFirst} />}
 />
 ```
