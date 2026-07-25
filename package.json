@@ -2,6 +2,7 @@
   "name": "xmlui-dnd-list",
   "version": "0.0.1",
   "private": true,
+  "license": "MIT",
   "description": "Drag-and-drop sortable list for XMLUI (and standalone React). Drop-in replacement for <Items> with onReorder.",
   "type": "module",
   "main": "./dist/xmlui-dnd-list.js",

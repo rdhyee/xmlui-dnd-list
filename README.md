@@ -91,3 +91,7 @@ npm run build:extension   # produces dist/xmlui-dnd-list.{js,mjs}
 ## Build journey
 
 The narrative of building this from scratch — toolchain decisions, dead ends, the three problems hit during the XMLUI-adapter step — is in [`BUILD_LOG.md`](./BUILD_LOG.md). Useful if you're writing your own XMLUI extension.
+
+## License
+
+[MIT](./LICENSE) © 2026 Raymond Yee
